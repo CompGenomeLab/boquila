@@ -259,6 +259,21 @@ fn parse_genome(filename: &str) -> anyhow::Result<HashMap<String, Vec<u8>>> {
     Ok(genome)
 }
 
+fn reverse_complement(input: &mut [u8]) {
+    input.iter_mut().for_each(|elem| match elem {
+        b'A' => *elem = b'T',
+        b'C' => *elem = b'G',
+        b'G' => *elem = b'C',
+        b'T' => *elem = b'A',
+        b'a' => *elem = b't',
+        b'c' => *elem = b'g',
+        b'g' => *elem = b'c',
+        b't' => *elem = b'a',
+        _ => {}
+    });
+    input.reverse();
+}
+
 fn main() -> anyhow::Result<()> {
     let matches = App::new("boquila")
         .version("0.2.0")
@@ -299,5 +314,27 @@ fn main() -> anyhow::Result<()> {
     } else {
         let input = Fastx::Fastq(input_file);
         input.sim(reference_file, regions_file)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn reverse_complement_works() {
+        let mut vec = vec![b'A', b'C', b'G', b'T'];
+        reverse_complement(vec.as_mut_slice());
+        assert_eq!(vec![b'A', b'C', b'G', b'T'].as_mut_slice(), vec);
+        vec.push(b'N');
+        reverse_complement(vec.as_mut_slice());
+        assert_eq!(vec![b'N', b'A', b'C', b'G', b'T'].as_mut_slice(), vec);
+        vec.push(b'a');
+        vec.push(b'g');
+        reverse_complement(vec.as_mut_slice());
+        assert_eq!(
+            vec![b'c', b't', b'A', b'C', b'G', b'T', b'N'].as_mut_slice(),
+            vec
+        );
     }
 }
