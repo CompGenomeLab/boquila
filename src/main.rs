@@ -191,9 +191,11 @@ impl<'a> Fastx<'a> {
         let mut rng = WyRand::new();
         let stdout = stdout();
 
-        for record in records {
+        for (index, record) in records.into_iter().enumerate() {
             if let Some(dist) = ndist.get(&record.len) {
                 let mut n_reads: Vec<&[u8]> = Vec::new();
+                let mut n_reads_rev: Vec<Vec<u8>> = Vec::new();
+                let mut d: Vec<Vec<u8>> = Vec::new();
                 let chr_index = rng.generate_range(0, regions.len());
                 let chr = regions.get(chr_index).context("This should never fail")?;
                 let genome_seq = genome.get(&chr.name).with_context(|| {
@@ -215,10 +217,25 @@ impl<'a> Fastx<'a> {
                             chr.name, chr.start, chr.end
                         )
                     })?;
-                    n_reads.push(seq);
+
+                    if index % 2 == 0 {
+                        n_reads_rev.push(seq.to_vec());
+                    } else {
+                        n_reads.push(seq);
+                    }
                 }
 
-                let seq = dist.top_seq(&n_reads);
+                let seq = match index % 2 {
+                    0 => {
+                        d = n_reads_rev
+                            .iter()
+                            .map(|elem| reverse_complement(elem.as_slice()))
+                            .collect();
+                        n_reads = d.iter().map(|elem| elem.as_slice()).collect();
+                        dist.top_seq(&n_reads)
+                    }
+                    _ => dist.top_seq(&n_reads),
+                };
 
                 match *self {
                     Fastx::Fastq(_) => {
@@ -259,19 +276,19 @@ fn parse_genome(filename: &str) -> anyhow::Result<HashMap<String, Vec<u8>>> {
     Ok(genome)
 }
 
-fn reverse_complement(input: &mut [u8]) {
-    input.iter_mut().for_each(|elem| match elem {
-        b'A' => *elem = b'T',
-        b'C' => *elem = b'G',
-        b'G' => *elem = b'C',
-        b'T' => *elem = b'A',
-        b'a' => *elem = b't',
-        b'c' => *elem = b'g',
-        b'g' => *elem = b'c',
-        b't' => *elem = b'a',
-        _ => {}
-    });
-    input.reverse();
+#[inline]
+fn reverse_complement(input: &[u8]) -> Vec<u8> {
+    input
+        .iter()
+        .rev()
+        .map(|elem| match elem {
+            b'A' => b'T',
+            b'C' => b'G',
+            b'G' => b'C',
+            b'T' => b'A',
+            _ => *elem,
+        })
+        .collect()
 }
 
 fn main() -> anyhow::Result<()> {
@@ -324,17 +341,16 @@ mod test {
     #[test]
     fn reverse_complement_works() {
         let mut vec = vec![b'A', b'C', b'G', b'T'];
-        reverse_complement(vec.as_mut_slice());
-        assert_eq!(vec![b'A', b'C', b'G', b'T'].as_mut_slice(), vec);
-        vec.push(b'N');
-        reverse_complement(vec.as_mut_slice());
-        assert_eq!(vec![b'N', b'A', b'C', b'G', b'T'].as_mut_slice(), vec);
-        vec.push(b'a');
-        vec.push(b'g');
-        reverse_complement(vec.as_mut_slice());
         assert_eq!(
-            vec![b'c', b't', b'A', b'C', b'G', b'T', b'N'].as_mut_slice(),
-            vec
+            vec![b'A', b'C', b'G', b'T'].as_slice(),
+            reverse_complement(vec.as_slice())
+        );
+        vec.push(b'N');
+        assert_eq!(
+            vec![b'N', b'A', b'C', b'G', b'T'].as_slice(),
+            reverse_complement(vec.as_slice())
         );
     }
+
+    //TODO: tests for other functions
 }
