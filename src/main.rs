@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fs::read_to_string, io::stdout};
+use std::{
+    collections::HashMap,
+    fs::{read_to_string, File},
+    io::{stdout, BufWriter, Write},
+};
 
 use anyhow::Context;
 use clap::{App, Arg};
@@ -9,7 +13,7 @@ use seq_io::{
     fastq::{write_to, Reader as fqReader, Record as fqRecord},
 };
 
-#[derive(DeRon)]
+#[derive(Clone, DeRon)]
 struct Region {
     name: String,
     start: u64,
@@ -46,7 +50,7 @@ struct Record {
 
 trait Dist {
     fn score_seq(&self, seq: &[u8]) -> f64;
-    fn top_seq<'a>(&self, seqs: &'a [&[u8]]) -> &'a [u8];
+    fn top_seq<'a>(&self, seqs: &'a [(&[u8], Region)]) -> &(&'a [u8], Region);
 }
 
 impl Dist for Vec<Nuc> {
@@ -64,11 +68,14 @@ impl Dist for Vec<Nuc> {
     }
 
     #[inline]
-    fn top_seq<'a>(&self, seqs: &'a [&[u8]]) -> &'a [u8] {
+    fn top_seq<'a>(&self, seqs: &'a [(&[u8], Region)]) -> &(&'a [u8], Region) {
         seqs.iter()
-            .max_by(|x, y| self.score_seq(x).partial_cmp(&self.score_seq(y)).unwrap())
+            .max_by(|x, y| {
+                self.score_seq(x.0)
+                    .partial_cmp(&self.score_seq(y.0))
+                    .unwrap()
+            })
             .unwrap()
-            .to_owned()
     }
 }
 
@@ -182,7 +189,12 @@ impl<'a> Fastx<'a> {
         }
     }
 
-    fn sim(&self, genome_path: &str, regions_path: &str) -> anyhow::Result<()> {
+    fn sim(
+        &self,
+        genome_path: &str,
+        regions_path: &str,
+        bed_path: Option<&str>,
+    ) -> anyhow::Result<()> {
         let genome = parse_genome(genome_path)?;
         let (records, ndist) = self.parse()?;
         let regions_str = read_to_string(regions_path)?;
@@ -191,11 +203,19 @@ impl<'a> Fastx<'a> {
         let mut rng = WyRand::new();
         let stdout = stdout();
 
+        let mut bed_file = match bed_path {
+            Some(bed_path) => {
+                let bed_file = File::create(bed_path)?;
+                Some(BufWriter::new(bed_file))
+            }
+            None => None,
+        };
+
         for (index, record) in records.into_iter().enumerate() {
             if let Some(dist) = ndist.get(&record.len) {
-                let mut n_reads: Vec<&[u8]> = Vec::new();
-                let mut n_reads_rev: Vec<Vec<u8>> = Vec::new();
-                let mut d: Vec<Vec<u8>> = Vec::new();
+                let mut n_reads: Vec<(&[u8], Region)> = Vec::new();
+                let mut n_reads_rev: Vec<(Vec<u8>, Region)> = Vec::new();
+                let mut d: Vec<(Vec<u8>, Region)> = Vec::new();
                 let chr_index = rng.generate_range(0, regions.len());
                 let chr = regions.get(chr_index).context("This should never fail")?;
                 let genome_seq = genome.get(&chr.name).with_context(|| {
@@ -219,23 +239,47 @@ impl<'a> Fastx<'a> {
                     })?;
 
                     if index % 2 == 0 {
-                        n_reads_rev.push(seq.to_vec());
+                        n_reads_rev.push((
+                            seq.to_vec(),
+                            Region {
+                                name: chr.name.to_owned(),
+                                start: start_pos as u64,
+                                end: end_pos as u64,
+                            },
+                        ));
                     } else {
-                        n_reads.push(seq);
+                        n_reads.push((
+                            seq,
+                            Region {
+                                name: chr.name.to_owned(),
+                                start: start_pos as u64,
+                                end: end_pos as u64,
+                            },
+                        ));
                     }
                 }
 
-                let seq = match index % 2 {
+                let (seq, coord) = match index % 2 {
                     0 => {
                         d = n_reads_rev
                             .iter()
-                            .map(|elem| reverse_complement(elem.as_slice()))
+                            .map(|elem| (reverse_complement(elem.0.as_slice()), elem.1.to_owned()))
                             .collect();
-                        n_reads = d.iter().map(|elem| elem.as_slice()).collect();
+                        n_reads = d
+                            .iter()
+                            .map(|elem| (elem.0.as_slice(), elem.1.to_owned()))
+                            .collect();
                         dist.top_seq(&n_reads)
                     }
                     _ => dist.top_seq(&n_reads),
                 };
+
+                if let Some(ref mut bed_file) = bed_file {
+                    bed_file.write(
+                        format!("{}\t{}\t{}\n", coord.name.as_str(), coord.start, coord.end)
+                            .as_bytes(),
+                    )?;
+                }
 
                 match *self {
                     Fastx::Fastq(_) => {
@@ -293,7 +337,7 @@ fn reverse_complement(input: &[u8]) -> Vec<u8> {
 
 fn main() -> anyhow::Result<()> {
     let matches = App::new("boquila")
-        .version("0.2.0")
+        .version("0.3.0")
         .about("Generate NGS reads with same nucleotide distribution as input file\nGenerated reads will be written to stdout\nBy default input and output format is FASTQ")
         .arg(Arg::new("src").about("Model file").index(1).required(true))
         .arg(
@@ -318,19 +362,28 @@ fn main() -> anyhow::Result<()> {
                 .takes_value(true)
                 .value_name("FILE")
                 .required(true),
+        ).arg(
+            Arg::new("outbed")
+                .about(
+                    "File name in which the simulated reads will be saved in BED format",
+                )
+                .long("bed")
+                .takes_value(true)
+                .value_name("FILE")
         )
         .get_matches();
 
     let regions_file = matches.value_of("regions").unwrap();
     let reference_file = matches.value_of("ref").unwrap();
     let input_file = matches.value_of("src").unwrap();
+    let bed_file = matches.value_of("outbed");
 
     if matches.is_present("fasta") {
         let input = Fastx::Fasta(input_file);
-        input.sim(reference_file, regions_file)
+        input.sim(reference_file, regions_file, bed_file)
     } else {
         let input = Fastx::Fastq(input_file);
-        input.sim(reference_file, regions_file)
+        input.sim(reference_file, regions_file, bed_file)
     }
 }
 
