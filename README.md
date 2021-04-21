@@ -5,7 +5,7 @@ Tool for generating synthetic next-generation sequencing reads with same nucleot
 ## Usage
 
 ```
-boquila 0.3.0
+boquila 0.3.1
 Generate NGS reads with same nucleotide distribution as input file
 Generated reads will be written to stdout
 By default input and output format is FASTQ
@@ -26,6 +26,8 @@ OPTIONS:
         --ref <FILE>        Reference FASTA
         --regions <FILE>    RON formatted file containing genomic regions that generated reads will
                             be selected from
+        --seed <INT>        Random number seed. If not provided system's default source of entropy
+                            will be used instead.
 ```
 
 Generated reads will be written to stdout
@@ -49,5 +51,5 @@ $ git clone https://github.com/CompGenomeLab/boquila.git
 $ cd boquila
 $ cargo build --release
 $ ./target/release/boquila --version
-0.3.0
+0.3.1
 ```

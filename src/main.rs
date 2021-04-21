@@ -194,14 +194,22 @@ impl<'a> Fastx<'a> {
         genome_path: &str,
         regions_path: &str,
         bed_path: Option<&str>,
+        seed: Option<&str>,
     ) -> anyhow::Result<()> {
         let genome = parse_genome(genome_path)?;
         let (records, ndist) = self.parse()?;
         let regions_str = read_to_string(regions_path)?;
         let regions: Vec<Region> =
             DeRon::deserialize_ron(&regions_str).context("Failed to parse regions file")?;
-        let mut rng = WyRand::new();
+
         let stdout = stdout();
+
+        // let mut rng = WyRand::new();
+
+        let mut rng = match seed {
+            Some(seed) => WyRand::new_seed(seed.parse()?),
+            None => WyRand::new(),
+        };
 
         let mut bed_file = match bed_path {
             Some(bed_path) => {
@@ -348,7 +356,7 @@ fn reverse_complement(input: &[u8]) -> Vec<u8> {
 
 fn main() -> anyhow::Result<()> {
     let matches = App::new("boquila")
-        .version("0.3.0")
+        .version("0.3.1")
         .about("Generate NGS reads with same nucleotide distribution as input file\nGenerated reads will be written to stdout\nBy default input and output format is FASTQ")
         .arg(Arg::new("src").about("Model file").index(1).required(true))
         .arg(
@@ -381,6 +389,14 @@ fn main() -> anyhow::Result<()> {
                 .long("bed")
                 .takes_value(true)
                 .value_name("FILE")
+        ).arg(
+            Arg::new("seed")
+                .about(
+                    "Random number seed. If not provided system's default source of entropy will be used instead.",
+                )
+                .long("seed")
+                .takes_value(true)
+                .value_name("INT")
         )
         .get_matches();
 
@@ -388,13 +404,14 @@ fn main() -> anyhow::Result<()> {
     let reference_file = matches.value_of("ref").unwrap();
     let input_file = matches.value_of("src").unwrap();
     let bed_file = matches.value_of("outbed");
+    let seed = matches.value_of("seed");
 
     if matches.is_present("fasta") {
         let input = Fastx::Fasta(input_file);
-        input.sim(reference_file, regions_file, bed_file)
+        input.sim(reference_file, regions_file, bed_file, seed)
     } else {
         let input = Fastx::Fastq(input_file);
-        input.sim(reference_file, regions_file, bed_file)
+        input.sim(reference_file, regions_file, bed_file, seed)
     }
 }
 
