@@ -274,10 +274,21 @@ impl<'a> Fastx<'a> {
                     _ => dist.top_seq(&n_reads),
                 };
 
+                let strand = match index % 2 {
+                    0 => "-",
+                    _ => "+",
+                };
+
                 if let Some(ref mut bed_file) = bed_file {
                     bed_file.write(
-                        format!("{}\t{}\t{}\n", coord.name.as_str(), coord.start, coord.end)
-                            .as_bytes(),
+                        format!(
+                            "{}\t{}\t{}\t.\t0\t{}\n",
+                            coord.name.as_str(),
+                            coord.start,
+                            coord.end,
+                            strand
+                        )
+                        .as_bytes(),
                     )?;
                 }
 
