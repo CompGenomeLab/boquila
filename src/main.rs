@@ -57,12 +57,12 @@ impl Dist for Vec<Nuc> {
     #[inline]
     fn score_seq(&self, seq: &[u8]) -> f64 {
         seq.iter()
-            .enumerate()
-            .fold(0f64, |acc, (i, elem)| match elem {
-                b'A' => acc + self[i].a,
-                b'C' => acc + self[i].c,
-                b'G' => acc + self[i].g,
-                b'T' => acc + self[i].t,
+            .zip(self.iter())
+            .fold(0f64, |acc, (elem, nuc)| match elem {
+                b'A' => acc + nuc.a,
+                b'C' => acc + nuc.c,
+                b'G' => acc + nuc.g,
+                b'T' => acc + nuc.t,
                 _ => acc,
             })
     }
@@ -87,13 +87,15 @@ trait DistMap {
 impl DistMap for HashMap<usize, Vec<Nuc>> {
     fn update(&mut self, seq: &[u8]) {
         if let Some(dist) = self.get_mut(&seq.len()) {
-            seq.iter().enumerate().for_each(|(i, elem)| match elem {
-                b'A' => dist[i].a += 1f64,
-                b'C' => dist[i].c += 1f64,
-                b'G' => dist[i].g += 1f64,
-                b'T' => dist[i].t += 1f64,
-                _ => (),
-            })
+            seq.iter()
+                .zip(dist.iter_mut())
+                .for_each(|(elem, nuc)| match elem {
+                    b'A' => nuc.a += 1f64,
+                    b'C' => nuc.c += 1f64,
+                    b'G' => nuc.g += 1f64,
+                    b'T' => nuc.t += 1f64,
+                    _ => (),
+                })
         } else {
             self.insert(
                 seq.len(),
@@ -356,7 +358,7 @@ fn reverse_complement(input: &[u8]) -> Vec<u8> {
 
 fn main() -> anyhow::Result<()> {
     let matches = App::new("boquila")
-        .version("0.3.1")
+        .version("0.3.2")
         .about("Generate NGS reads with same nucleotide distribution as input file\nGenerated reads will be written to stdout\nBy default input and output format is FASTQ")
         .arg(Arg::new("src").about("Model file").index(1).required(true))
         .arg(
