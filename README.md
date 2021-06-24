@@ -5,7 +5,7 @@ Tool for generating synthetic next-generation sequencing reads with same nucleot
 ## Usage
 
 ```
-boquila 0.3.2
+boquila 0.4.0
 Generate NGS reads with same nucleotide distribution as input file
 Generated reads will be written to stdout
 By default input and output format is FASTQ
@@ -22,6 +22,7 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
+        --kmer <INT>        Kmer size to be used while calculating frequency [default: 1]
         --bed <FILE>        File name in which the simulated reads will be saved in BED format
         --ref <FILE>        Reference FASTA
         --regions <FILE>    RON formatted file containing genomic regions that generated reads will
@@ -30,7 +31,8 @@ OPTIONS:
                             will be used instead.
 ```
 
-Generated reads will be written to stdout
+Generated reads will be written to stdout in FASTA or FASTQ format.
+If `--bed` option is provided, generatred reads also will be written to given file in `BED6` format.
 
 Sample `regions` file for Homo sapiens (human) genome assembly GRCh38 (hg38) is provided as `GRCh38.ron`
 
@@ -51,5 +53,5 @@ $ git clone https://github.com/CompGenomeLab/boquila.git
 $ cd boquila
 $ cargo build --release
 $ ./target/release/boquila --version
-0.3.2
+0.4.0
 ```

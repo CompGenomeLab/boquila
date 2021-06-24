@@ -1,12 +1,13 @@
 [package]
 name = "boquila"
-version = "0.3.2"
+version = "0.4.0"
 authors = ["Ümit Akköse <umieat@gmail.com>"]
 edition = "2018"
 
 [dependencies]
 anyhow = "1.0.34"
 clap = "3.0.0-beta.2"
+itertools = "0.10.0"
 nanoserde = "0.1.20"
 nanorand = {version = "0.5.1", features = ["getrandom"]}
 seq_io = "0.3.1"

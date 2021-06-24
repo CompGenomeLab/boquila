@@ -2,10 +2,12 @@ use std::{
     collections::HashMap,
     fs::{read_to_string, File},
     io::{stdout, BufWriter, Write},
+    str,
 };
 
 use anyhow::Context;
 use clap::{App, Arg};
+use itertools::Itertools;
 use nanorand::{WyRand, RNG};
 use nanoserde::DeRon;
 use seq_io::{
@@ -20,25 +22,47 @@ struct Region {
     end: u64,
 }
 
-#[derive(Clone, Default)]
-struct Nuc {
-    a: f64,
-    c: f64,
-    g: f64,
-    t: f64,
+trait Kmer {
+    fn from_k_with_key(kmer: usize, key: String) -> Self;
+    fn normalize(&mut self);
 }
 
-impl Nuc {
-    fn sum(&self) -> f64 {
-        self.a + self.c + self.g + self.t
+impl Kmer for HashMap<String, f32> {
+    fn from_k_with_key(k: usize, key: String) -> Self {
+        let nucs = ['A', 'C', 'T', 'G'];
+        let mut map: HashMap<String, f32> = HashMap::new();
+        if k == 1 {
+            nucs.iter().for_each(|n| {
+                map.insert(n.to_string(), 0f32);
+            });
+        } else {
+            nucs.iter().for_each(|n| {
+                let mut s = String::new();
+                for _ in 0..k {
+                    s.push(*n);
+                }
+                map.insert(s, 0f32);
+            });
+            nucs.iter().permutations(k).for_each(|per| {
+                let mut s = String::new();
+                per.iter().for_each(|p| {
+                    s.push(**p);
+                });
+                map.insert(s, 0f32);
+            });
+        }
+
+        if let Some(value) = map.get_mut(&key) {
+            *value = 1f32;
+        }
+        map
     }
 
     fn normalize(&mut self) {
-        let sum = self.sum();
-        self.a /= sum;
-        self.c /= sum;
-        self.g /= sum;
-        self.t /= sum;
+        let sum: f32 = self.values().sum();
+        self.values_mut().for_each(|v| {
+            *v /= sum;
+        });
     }
 }
 
@@ -49,30 +73,31 @@ struct Record {
 }
 
 trait Dist {
-    fn score_seq(&self, seq: &[u8]) -> f64;
-    fn top_seq<'a>(&self, seqs: &'a [(&[u8], Region)]) -> &(&'a [u8], Region);
+    fn score_seq(&self, seq: &[u8], k: usize) -> f32;
+    fn top_seq<'a>(&self, seqs: &'a [(&[u8], Region)], k: usize) -> &(&'a [u8], Region);
 }
 
-impl Dist for Vec<Nuc> {
+impl Dist for Vec<HashMap<String, f32>> {
     #[inline]
-    fn score_seq(&self, seq: &[u8]) -> f64 {
-        seq.iter()
+    fn score_seq(&self, seq: &[u8], k: usize) -> f32 {
+        seq.windows(k)
             .zip(self.iter())
-            .fold(0f64, |acc, (elem, nuc)| match elem {
-                b'A' => acc + nuc.a,
-                b'C' => acc + nuc.c,
-                b'G' => acc + nuc.g,
-                b'T' => acc + nuc.t,
-                _ => acc,
+            .fold(0f32, |acc, (elem, kmer)| {
+                if let Some(value) =
+                    kmer.get(str::from_utf8(elem).expect("sequence is not in utf8 format"))
+                {
+                    acc + value
+                } else {
+                    acc
+                }
             })
     }
-
     #[inline]
-    fn top_seq<'a>(&self, seqs: &'a [(&[u8], Region)]) -> &(&'a [u8], Region) {
+    fn top_seq<'a>(&self, seqs: &'a [(&[u8], Region)], k: usize) -> &(&'a [u8], Region) {
         seqs.iter()
             .max_by(|x, y| {
-                self.score_seq(x.0)
-                    .partial_cmp(&self.score_seq(y.0))
+                self.score_seq(x.0, k)
+                    .partial_cmp(&self.score_seq(y.0, k))
                     .unwrap()
             })
             .unwrap()
@@ -84,55 +109,40 @@ trait DistMap {
     fn normalize(&mut self);
 }
 
-impl DistMap for HashMap<usize, Vec<Nuc>> {
-    fn update(&mut self, seq: &[u8]) {
-        if let Some(dist) = self.get_mut(&seq.len()) {
-            seq.iter()
-                .zip(dist.iter_mut())
-                .for_each(|(elem, nuc)| match elem {
-                    b'A' => nuc.a += 1f64,
-                    b'C' => nuc.c += 1f64,
-                    b'G' => nuc.g += 1f64,
-                    b'T' => nuc.t += 1f64,
-                    _ => (),
+fn update_distmap(dist_map: &mut HashMap<usize, Vec<HashMap<String, f32>>>, seq: &[u8], k: usize) {
+    if let Some(dist) = dist_map.get_mut(&seq.len()) {
+        seq.windows(k)
+            .zip(dist.iter_mut())
+            .for_each(|(elem, kmer)| {
+                if let Some(value) =
+                    kmer.get_mut(str::from_utf8(elem).expect("sequence is not in utf8 format"))
+                {
+                    *value += 1f32;
+                };
+            });
+    } else {
+        dist_map.insert(
+            seq.len(),
+            seq.windows(k)
+                .map(|elem| {
+                    Kmer::from_k_with_key(
+                        k,
+                        str::from_utf8(elem)
+                            .expect("sequence is not in utf8 format")
+                            .to_string(),
+                    )
                 })
-        } else {
-            self.insert(
-                seq.len(),
-                seq.iter()
-                    .map(|elem| match elem {
-                        b'A' => Nuc {
-                            a: 1f64,
-                            ..Default::default()
-                        },
-                        b'C' => Nuc {
-                            c: 1f64,
-                            ..Default::default()
-                        },
-                        b'G' => Nuc {
-                            g: 1f64,
-                            ..Default::default()
-                        },
-                        b'T' => Nuc {
-                            t: 1f64,
-                            ..Default::default()
-                        },
-                        _ => Nuc {
-                            ..Default::default()
-                        },
-                    })
-                    .collect(),
-            );
-        }
+                .collect(),
+        );
     }
+}
 
-    fn normalize(&mut self) {
-        self.values_mut().for_each(|value| {
-            value.iter_mut().for_each(|n| {
-                n.normalize();
-            })
+fn normalize_distmap(dist_map: &mut HashMap<usize, Vec<HashMap<String, f32>>>) {
+    dist_map.values_mut().for_each(|value| {
+        value.iter_mut().for_each(|n| {
+            n.normalize();
         })
-    }
+    })
 }
 
 enum Fastx<'a> {
@@ -141,9 +151,12 @@ enum Fastx<'a> {
 }
 
 impl<'a> Fastx<'a> {
-    fn parse(&self) -> anyhow::Result<(Vec<Record>, HashMap<usize, Vec<Nuc>>)> {
+    fn parse(
+        &self,
+        kmer: usize,
+    ) -> anyhow::Result<(Vec<Record>, HashMap<usize, Vec<HashMap<String, f32>>>)> {
         let mut records: Vec<Record> = Vec::new();
-        let mut ndist: HashMap<usize, Vec<Nuc>> = HashMap::new();
+        let mut ndist: HashMap<usize, Vec<HashMap<String, f32>>> = HashMap::new();
 
         match *self {
             Fastx::Fasta(fname) => {
@@ -160,10 +173,10 @@ impl<'a> Fastx<'a> {
                             len: record_seq.len(),
                         });
 
-                        ndist.update(&record_seq);
+                        update_distmap(&mut ndist, &record_seq, kmer);
                     }
                 }
-                ndist.normalize();
+                normalize_distmap(&mut ndist);
 
                 Ok((records, ndist))
             }
@@ -174,17 +187,17 @@ impl<'a> Fastx<'a> {
                 while let Some(record) = reader.next() {
                     let record = record.context("Invalid record")?;
                     let record_seq = record.seq();
-                    if record_seq.len() != 0 {
+                    if !record_seq.is_empty() {
                         records.push(Record {
                             head: String::from_utf8(record.head().to_owned())?,
                             qual: Some(String::from_utf8(record.qual().to_owned())?),
                             len: record_seq.len(),
                         });
 
-                        ndist.update(record_seq);
+                        update_distmap(&mut ndist, &record_seq, kmer);
                     }
                 }
-                ndist.normalize();
+                normalize_distmap(&mut ndist);
 
                 Ok((records, ndist))
             }
@@ -197,16 +210,15 @@ impl<'a> Fastx<'a> {
         regions_path: &str,
         bed_path: Option<&str>,
         seed: Option<&str>,
+        kmer: usize,
     ) -> anyhow::Result<()> {
         let genome = parse_genome(genome_path)?;
-        let (records, ndist) = self.parse()?;
+        let (records, ndist) = self.parse(kmer)?;
         let regions_str = read_to_string(regions_path)?;
         let regions: Vec<Region> =
             DeRon::deserialize_ron(&regions_str).context("Failed to parse regions file")?;
 
         let stdout = stdout();
-
-        // let mut rng = WyRand::new();
 
         let mut rng = match seed {
             Some(seed) => WyRand::new_seed(seed.parse()?),
@@ -225,7 +237,7 @@ impl<'a> Fastx<'a> {
             if let Some(dist) = ndist.get(&record.len) {
                 let mut n_reads: Vec<(&[u8], Region)> = Vec::new();
                 let mut n_reads_rev: Vec<(Vec<u8>, Region)> = Vec::new();
-                let mut d: Vec<(Vec<u8>, Region)> = Vec::new();
+                let d: Vec<(Vec<u8>, Region)>;
                 let chr_index = rng.generate_range(0, regions.len());
                 let chr = regions.get(chr_index).context("This should never fail")?;
                 let genome_seq = genome.get(&chr.name).with_context(|| {
@@ -279,9 +291,9 @@ impl<'a> Fastx<'a> {
                             .iter()
                             .map(|elem| (elem.0.as_slice(), elem.1.to_owned()))
                             .collect();
-                        dist.top_seq(&n_reads)
+                        dist.top_seq(&n_reads, kmer)
                     }
-                    _ => dist.top_seq(&n_reads),
+                    _ => dist.top_seq(&n_reads, kmer),
                 };
 
                 let strand = match index % 2 {
@@ -290,7 +302,7 @@ impl<'a> Fastx<'a> {
                 };
 
                 if let Some(ref mut bed_file) = bed_file {
-                    bed_file.write(
+                    bed_file.write_all(
                         format!(
                             "{}\t{}\t{}\t.\t0\t{}\n",
                             coord.name.as_str(),
@@ -358,7 +370,7 @@ fn reverse_complement(input: &[u8]) -> Vec<u8> {
 
 fn main() -> anyhow::Result<()> {
     let matches = App::new("boquila")
-        .version("0.3.2")
+        .version("0.4.0")
         .about("Generate NGS reads with same nucleotide distribution as input file\nGenerated reads will be written to stdout\nBy default input and output format is FASTQ")
         .arg(Arg::new("src").about("Model file").index(1).required(true))
         .arg(
@@ -399,6 +411,15 @@ fn main() -> anyhow::Result<()> {
                 .long("seed")
                 .takes_value(true)
                 .value_name("INT")
+        ).arg(
+            Arg::new("kmer")
+                .about(
+                    "Kmer size to be used while calculating frequency",
+                )
+                .long("kmer")
+                .takes_value(true)
+                .value_name("INT")
+                .default_value("1")
         )
         .get_matches();
 
@@ -407,13 +428,14 @@ fn main() -> anyhow::Result<()> {
     let input_file = matches.value_of("src").unwrap();
     let bed_file = matches.value_of("outbed");
     let seed = matches.value_of("seed");
+    let kmer: usize = matches.value_of_t("kmer")?;
 
     if matches.is_present("fasta") {
         let input = Fastx::Fasta(input_file);
-        input.sim(reference_file, regions_file, bed_file, seed)
+        input.sim(reference_file, regions_file, bed_file, seed, kmer)
     } else {
         let input = Fastx::Fastq(input_file);
-        input.sim(reference_file, regions_file, bed_file, seed)
+        input.sim(reference_file, regions_file, bed_file, seed, kmer)
     }
 }
 
