@@ -32,7 +32,8 @@ OPTIONS:
 ```
 
 Generated reads will be written to stdout in FASTA or FASTQ format.
-If `--bed` option is provided, generatred reads also will be written to given file in `BED6` format.
+
+If `--bed` option is provided, generated reads also will be written to given file in `BED6` format.
 
 Sample `regions` file for Homo sapiens (human) genome assembly GRCh38 (hg38) is provided as `GRCh38.ron`
 
