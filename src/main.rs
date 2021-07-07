@@ -8,8 +8,9 @@ use std::{
 use anyhow::Context;
 use clap::{App, Arg};
 use itertools::Itertools;
-use nanorand::{WyRand, RNG};
 use nanoserde::DeRon;
+use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand_distr::{Distribution, WeightedAliasIndex};
 use seq_io::{
     fasta::{write_to as write_to_fa, Reader as faReader, Record as faRecord},
     fastq::{write_to, Reader as fqReader, Record as fqRecord},
@@ -220,9 +221,9 @@ impl<'a> Fastx<'a> {
 
         let stdout = stdout();
 
-        let mut rng = match seed {
-            Some(seed) => WyRand::new_seed(seed.parse()?),
-            None => WyRand::new(),
+        let mut rng: SmallRng = match seed {
+            Some(seed) => SeedableRng::seed_from_u64(seed.parse()?),
+            None => SeedableRng::from_entropy(),
         };
 
         let mut bed_file = match bed_path {
@@ -233,13 +234,21 @@ impl<'a> Fastx<'a> {
             None => None,
         };
 
+        let weights: Vec<u64> = regions
+            .iter()
+            .map(|region| region.end - region.start)
+            .collect();
+
+        let rng_dist = WeightedAliasIndex::new(weights).unwrap();
+
         for (index, record) in records.into_iter().enumerate() {
             if let Some(dist) = ndist.get(&record.len) {
                 let mut n_reads: Vec<(&[u8], Region)> = Vec::new();
                 let mut n_reads_rev: Vec<(Vec<u8>, Region)> = Vec::new();
                 let d: Vec<(Vec<u8>, Region)>;
-                let chr_index = rng.generate_range(0, regions.len());
-                let chr = regions.get(chr_index).context("This should never fail")?;
+                let chr = regions
+                    .get(rng_dist.sample(&mut rng))
+                    .context("This should never fail")?;
                 let genome_seq = genome.get(&chr.name).with_context(|| {
                     format!(
                         "Failed to get chromosome {} from reference genome",
@@ -248,10 +257,8 @@ impl<'a> Fastx<'a> {
                 })?;
 
                 for _ in 0..10 {
-                    let start_pos = rng.generate_range(
-                        chr.start as usize + record.len,
-                        chr.end as usize - record.len,
-                    );
+                    let start_pos = rng
+                        .gen_range(chr.start as usize + record.len..chr.end as usize - record.len);
                     let end_pos = start_pos + record.len;
                     let seq = genome_seq.get(start_pos..end_pos).with_context(|| {
                         format!(
@@ -370,7 +377,7 @@ fn reverse_complement(input: &[u8]) -> Vec<u8> {
 
 fn main() -> anyhow::Result<()> {
     let matches = App::new("boquila")
-        .version("0.4.0")
+        .version("0.4.1")
         .about("Generate NGS reads with same nucleotide distribution as input file\nGenerated reads will be written to stdout\nBy default input and output format is FASTQ")
         .arg(Arg::new("src").about("Model file").index(1).required(true))
         .arg(
