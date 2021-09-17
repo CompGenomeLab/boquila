@@ -612,7 +612,7 @@ fn main() -> anyhow::Result<()> {
     let input_file = matches.value_of("src").unwrap();
     let bed_file = matches.value_of("outbed");
     let seed = matches.value_of("seed");
-    let kmer: usize = matches.value_of_t("kmer")?;
+    let kmer: usize = matches.value_of("kmer").unwrap_or("1").parse()?;
     let inseq_fasta = matches.is_present("inputseqfasta");
 
     if matches.is_present("inputseq") {

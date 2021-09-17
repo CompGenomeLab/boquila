@@ -76,6 +76,7 @@ boquila input_reads.fq --inseqFasta --inseq ref_genome.fa --regions GRCh38.ron >
 ## Installation
 
 boquila is written in Rust, so you'll need to grab a [Rust installation](https://www.rust-lang.org/) in order to install or compile it.
+The current minimum Rust version is `1.55.0`
 
 Use `cargo` to install
 
