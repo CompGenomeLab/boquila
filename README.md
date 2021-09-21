@@ -65,7 +65,7 @@ boquila input_reads.fq --ref ref_genome.fa --regions GRCh38.ron --bed out.bed > 
 
 Using Input Sequencing instead of reference genome
 ```
-boquila input_reads.fq --inseq inputseq_reads.fa > out.fq
+boquila input_reads.fq --inseq inputseq_reads.fq > out.fq
 ```
 
 Using Input Sequencing reads which are in FASTA format
