@@ -55,7 +55,7 @@ boquila input_reads.fq --ref ref_genome.fa --regions GRCh38.ron --seed 7 > out.f
 
 Using reads that are in FASTA format
 ```
-boquila input_reads.fasta --fasta --ref ref_genome.fa --regions GRCh38.ron > out.fa
+boquila input_reads.fa --fasta --ref ref_genome.fa --regions GRCh38.ron > out.fa
 ```
 
 Saving output in BED format
@@ -65,17 +65,18 @@ boquila input_reads.fq --ref ref_genome.fa --regions GRCh38.ron --bed out.bed > 
 
 Using Input Sequencing instead of reference genome
 ```
-boquila input_reads.fq --inseq ref_genome.fa --regions GRCh38.ron > out.fq
+boquila input_reads.fq --inseq inputseq_reads.fa > out.fq
 ```
 
 Using Input Sequencing reads which are in FASTA format
 ```
-boquila input_reads.fq --inseqFasta --inseq ref_genome.fa --regions GRCh38.ron > out.fq
+boquila input_reads.fq --inseqFasta --inseq inputseq_reads.fa > out.fq
 ```
 
 ## Installation
 
 boquila is written in Rust, so you'll need to grab a [Rust installation](https://www.rust-lang.org/) in order to install or compile it.
+
 The current minimum Rust version is `1.55.0`
 
 Use `cargo` to install
