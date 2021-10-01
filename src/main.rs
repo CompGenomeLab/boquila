@@ -424,7 +424,7 @@ impl<'a> Fastx<'a> {
                     let mut choosen = input_records
                         .choose(&mut rng)
                         .context("Slice should not be empty")?;
-                    while choosen.len() < record.len {
+                    while choosen.len() <= record.len {
                         choosen = input_records
                             .choose(&mut rng)
                             .context("Slice should not be empty")?;
