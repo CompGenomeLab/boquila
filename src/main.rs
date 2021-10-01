@@ -421,9 +421,14 @@ impl<'a> Fastx<'a> {
             if let Some(dist) = dyn_dist.get(&record.len) {
                 let mut n_reads: Vec<(&[u8], Region)> = Vec::new();
                 for _ in 0..10 {
-                    let choosen = input_records
+                    let mut choosen = input_records
                         .choose(&mut rng)
                         .context("Slice should not be empty")?;
+                    while choosen.len() < record.len {
+                        choosen = input_records
+                            .choose(&mut rng)
+                            .context("Slice should not be empty")?;
+                    }
                     let start_pos = rng.gen_range(0usize..choosen.len() as usize - record.len);
                     let end_pos = start_pos + record.len;
                     let seq = choosen
@@ -432,7 +437,7 @@ impl<'a> Fastx<'a> {
                     n_reads.push((
                         seq.as_bytes(),
                         Region {
-                            name: "hi".to_string(),
+                            name: "".to_string(),
                             start: start_pos as u64,
                             end: end_pos as u64,
                         },
