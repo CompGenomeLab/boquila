@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.34"
+bytecount = "0.6.2"
 clap = "3.0.0-beta.4"
 itertools = "0.10.0"
 nanoserde = "0.1.20"

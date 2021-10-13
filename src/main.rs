@@ -6,6 +6,7 @@ use std::{
 };
 
 use anyhow::Context;
+use bytecount::count;
 use clap::{App, Arg};
 use itertools::Itertools;
 use nanoserde::DeRon;
@@ -206,7 +207,7 @@ impl<'a> Fastx<'a> {
                 while let Some(record) = reader.next() {
                     let record = record.context("Invalid record")?;
                     let record_seq = record.full_seq();
-                    if record_seq.len() != 0 {
+                    if !record_seq.is_empty() && count(&record_seq, b'N') == 0 {
                         records.push(Record {
                             head: String::from_utf8(record.head().to_owned())?,
                             qual: None,
@@ -227,7 +228,7 @@ impl<'a> Fastx<'a> {
                 while let Some(record) = reader.next() {
                     let record = record.context("Invalid record")?;
                     let record_seq = record.seq();
-                    if !record_seq.is_empty() {
+                    if !record_seq.is_empty() && count(record_seq, b'N') == 0 {
                         records.push(Record {
                             head: String::from_utf8(record.head().to_owned())?,
                             qual: Some(String::from_utf8(record.qual().to_owned())?),
@@ -421,14 +422,9 @@ impl<'a> Fastx<'a> {
             if let Some(dist) = dyn_dist.get(&record.len) {
                 let mut n_reads: Vec<(&[u8], Region)> = Vec::new();
                 for _ in 0..10 {
-                    let mut choosen = input_records
+                    let choosen = input_records
                         .choose(&mut rng)
                         .context("Slice should not be empty")?;
-                    while choosen.len() <= record.len {
-                        choosen = input_records
-                            .choose(&mut rng)
-                            .context("Slice should not be empty")?;
-                    }
                     let start_pos = rng.gen_range(0usize..choosen.len() as usize - record.len);
                     let end_pos = start_pos + record.len;
                     let seq = choosen
@@ -484,7 +480,7 @@ fn parse_input_seq(filename: &str, fasta: bool) -> anyhow::Result<Vec<String>> {
         while let Some(record) = reader.next() {
             let record = record.context("Invalid record")?;
             let record_seq = record.seq();
-            if !record_seq.is_empty() {
+            if !record_seq.is_empty() && count(record_seq, b'N') == 0 {
                 records.push(
                     str::from_utf8(record_seq)
                         .context("Input sequencing read is not in utf8 format")?
@@ -499,7 +495,7 @@ fn parse_input_seq(filename: &str, fasta: bool) -> anyhow::Result<Vec<String>> {
         while let Some(record) = reader.next() {
             let record = record.context("Invalid record")?;
             let record_seq = record.seq();
-            if !record_seq.is_empty() {
+            if !record_seq.is_empty() && count(record_seq, b'N') == 0 {
                 records.push(
                     str::from_utf8(record_seq)
                         .context("Input sequencing read is not in utf8 format")?
@@ -525,7 +521,9 @@ fn parse_genome(filename: &str) -> anyhow::Result<HashMap<String, Vec<u8>>> {
             .with_context(|| format!("Failed to parse record id of record {:?}", &record))?;
         let record_seq = record.full_seq();
 
-        genome.insert(record_id.to_owned(), record_seq.into_owned());
+        if !record_seq.is_empty() && count(&record_seq, b'N') == 0 {
+            genome.insert(record_id.to_owned(), record_seq.into_owned());
+        }
     }
 
     Ok(genome)
