@@ -521,7 +521,7 @@ fn parse_genome(filename: &str) -> anyhow::Result<HashMap<String, Vec<u8>>> {
             .with_context(|| format!("Failed to parse record id of record {:?}", &record))?;
         let record_seq = record.full_seq();
 
-        if !record_seq.is_empty() && count(&record_seq, b'N') == 0 {
+        if !record_seq.is_empty() {
             genome.insert(record_id.to_owned(), record_seq.into_owned());
         }
     }
@@ -546,7 +546,7 @@ fn reverse_complement(input: &[u8]) -> Vec<u8> {
 
 fn main() -> anyhow::Result<()> {
     let matches = App::new("boquila")
-        .version("0.5.0")
+        .version("0.5.1")
         .about("Generate NGS reads with same nucleotide distribution as input file\nGenerated reads will be written to stdout\nBy default input and output format is FASTQ")
         .arg(Arg::new("src").about("Model file").index(1).required(true))
         .arg(
