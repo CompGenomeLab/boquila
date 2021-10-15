@@ -111,7 +111,7 @@ impl Dist for Vec<HashMap<String, f32>> {
             .max_by(|x, y| {
                 self.score_seq(x.0, k)
                     .partial_cmp(&self.score_seq(y.0, k))
-                    .unwrap()
+                    .unwrap_or(std::cmp::Ordering::Equal)
             })
             .unwrap()
     }
@@ -304,15 +304,28 @@ impl<'a> Fastx<'a> {
                 })?;
 
                 for _ in 0..10 {
-                    let start_pos = rng
+                    let mut start_pos = rng
                         .gen_range(chr.start as usize + record.len..chr.end as usize - record.len);
-                    let end_pos = start_pos + record.len;
-                    let seq = genome_seq.get(start_pos..end_pos).with_context(|| {
+                    let mut end_pos = start_pos + record.len;
+                    let mut seq = genome_seq.get(start_pos..end_pos).with_context(|| {
                         format!(
                             "Failed to get sequence {}:{}:{} from reference genome",
                             chr.name, chr.start, chr.end
                         )
                     })?;
+
+                    while count(seq, b'N') != 0 {
+                        start_pos = rng.gen_range(
+                            chr.start as usize + record.len..chr.end as usize - record.len,
+                        );
+                        end_pos = start_pos + record.len;
+                        seq = genome_seq.get(start_pos..end_pos).with_context(|| {
+                            format!(
+                                "Failed to get sequence {}:{}:{} from reference genome",
+                                chr.name, chr.start, chr.end
+                            )
+                        })?;
+                    }
 
                     if index % 2 == 0 {
                         n_reads_rev.push((
