@@ -43,6 +43,8 @@ If Input Sequencing reads will be used for simulation, they should be provided w
 
 ### Examples
 
+> More detailed example can be found in the [examples](examples/README.md) directory
+
 Simple usage
 ```
 boquila input_reads.fq --ref ref_genome.fa --regions GRCh38.ron > out.fq
