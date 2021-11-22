@@ -43,7 +43,7 @@ If Input Sequencing reads will be used for simulation, they should be provided w
 
 ### Examples
 
-> More detailed example can be found in the [examples](examples/README.md) directory
+> More detailed example can be found in the [examples](./examples) directory
 
 Simple usage
 ```
