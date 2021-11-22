@@ -102,6 +102,9 @@ nuc_profile -R SRR5125157_sim.fastq --len 13 > simulation_profile.tsv
 
 - For plots and statistical analysis you can use [this](./plots.ipynb) python notebook provided in the examples directory
 
+- For statistical analysis we are using Hotelling's T-square test
+    - Hotelling's T2: 0.001973, p_value: 1.0
+
 - After completing steps in notebook provided above, you should see following plots.
 
 <p align="center">
