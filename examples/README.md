@@ -16,7 +16,7 @@
 
 We are using Escherichia coli XR-seq data from [Adebali,O. et al. (2017)](https://doi.org/10.1073/pnas.1700230114)
 
-- XR-seq data can be downloaded from [here](ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR512/007/SRR5125157/SRR5125157.fastq.gz)
+- XR-seq data can be downloaded from here `ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR512/007/SRR5125157/SRR5125157.fastq.gz`
 
 - Escherichia coli reference genome can be downloaded from [here](https://www.ncbi.nlm.nih.gov/nuccore/NC_000913.3?report=fasta) *save as `ecoli_genome.fasta`*
 
