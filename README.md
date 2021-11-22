@@ -5,7 +5,8 @@ Tool for generating synthetic next-generation sequencing reads with same nucleot
 ## Usage
 
 ```
-boquila 0.5.1
+boquila 0.6.0
+
 Generate NGS reads with same nucleotide distribution as input file
 Generated reads will be written to stdout
 By default input and output format is FASTQ
@@ -18,19 +19,24 @@ ARGS:
 
 FLAGS:
         --fasta         Change input and output format to FASTA
+    -h, --help          Print help information
         --inseqFasta    Change the input sequencing format to FASTA
-    -h, --help          Prints help information
-    -V, --version       Prints version information
+    -V, --version       Print version information
 
 OPTIONS:
+        --bed <FILE>        File name in which the simulated reads will be saved in BED format
         --inseq <FILE>      Input sequencing reads to be used instead of reference genome
         --kmer <INT>        Kmer size to be used while calculating frequency [default: 1]
-        --bed <FILE>        File name in which the simulated reads will be saved in BED format
         --ref <FILE>        Reference FASTA
         --regions <FILE>    RON formatted file containing genomic regions that generated reads will
                             be selected from
         --seed <INT>        Random number seed. If not provided system's default source of entropy
                             will be used instead.
+        --sens <INT>        Sensitivity of selected reads.
+                            If some positions are predominated by specific nucleotides, increasing
+                            this value can make simulated reads more similar to input reads.
+                            However runtime will also increase linearly. [default: 2] [possible
+                            values: 1, 2, 3, 4, 5]
 ```
 
 Generated reads will be written to stdout in FASTA or FASTQ format.
@@ -94,5 +100,5 @@ $ git clone https://github.com/CompGenomeLab/boquila.git
 $ cd boquila
 $ cargo build --release
 $ ./target/release/boquila --version
-0.5.1
+0.6.0
 ```

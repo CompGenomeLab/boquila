@@ -252,6 +252,7 @@ impl<'a> Fastx<'a> {
         bed_path: Option<&str>,
         seed: Option<&str>,
         kmer: usize,
+        sens: usize,
     ) -> anyhow::Result<()> {
         let genome = parse_genome(genome_path)?;
         let (records, ndist) = self.parse(kmer)?;
@@ -303,7 +304,7 @@ impl<'a> Fastx<'a> {
                     )
                 })?;
 
-                for _ in 0..10 {
+                for _ in 0..25 * sens {
                     let mut start_pos = rng
                         .gen_range(chr.start as usize + record.len..chr.end as usize - record.len);
                     let mut end_pos = start_pos + record.len;
@@ -414,6 +415,7 @@ impl<'a> Fastx<'a> {
         seed: Option<&str>,
         kmer: usize,
         fasta: bool,
+        sens: usize,
     ) -> anyhow::Result<()> {
         let input_records = parse_input_seq(input_seq_path, fasta)?;
         let (records, ndist) = self.parse(kmer)?;
@@ -434,7 +436,7 @@ impl<'a> Fastx<'a> {
         for record in records {
             if let Some(dist) = dyn_dist.get(&record.len) {
                 let mut n_reads: Vec<(&[u8], Region)> = Vec::new();
-                for _ in 0..10 {
+                for _ in 0..25 * sens {
                     let choosen = input_records
                         .choose(&mut rng)
                         .context("Slice should not be empty")?;
@@ -559,7 +561,7 @@ fn reverse_complement(input: &[u8]) -> Vec<u8> {
 
 fn main() -> anyhow::Result<()> {
     let matches = App::new("boquila")
-        .version("0.5.1")
+        .version("0.6.0")
         .about("Generate NGS reads with same nucleotide distribution as input file\nGenerated reads will be written to stdout\nBy default input and output format is FASTQ")
         .arg(Arg::new("src").about("Model file").index(1).required(true))
         .arg(
@@ -620,6 +622,14 @@ fn main() -> anyhow::Result<()> {
                 .takes_value(true)
                 .value_name("INT")
                 .default_value("1")
+        ).arg(
+            Arg::new("sens")
+                .about("Sensitivity of selected reads.\nIf some positions are predominated by specific nucleotides, increasing this value can make simulated reads more similar to input reads.\nHowever runtime will also increase linearly.")
+                .long("sens")
+                .takes_value(true)
+                .value_name("INT")
+                .possible_values(&["1" ,"2", "3", "4", "5"])
+                .default_value("2")
         )
         .get_matches();
 
@@ -629,23 +639,24 @@ fn main() -> anyhow::Result<()> {
     let bed_file = matches.value_of("outbed");
     let seed = matches.value_of("seed");
     let kmer: usize = matches.value_of("kmer").unwrap_or("1").parse()?;
+    let sens: usize = matches.value_of("sens").unwrap_or("2").parse()?;
     let inseq_fasta = matches.is_present("inputseqfasta");
 
     if matches.is_present("inputseq") {
         let input_seq_path = matches.value_of("inputseq").unwrap();
         if matches.is_present("fasta") {
             let input = Fastx::Fasta(input_file);
-            input.sim_input_seq(input_seq_path, seed, kmer, inseq_fasta)
+            input.sim_input_seq(input_seq_path, seed, kmer, inseq_fasta, sens)
         } else {
             let input = Fastx::Fastq(input_file);
-            input.sim_input_seq(input_seq_path, seed, kmer, inseq_fasta)
+            input.sim_input_seq(input_seq_path, seed, kmer, inseq_fasta, sens)
         }
     } else if matches.is_present("fasta") {
         let input = Fastx::Fasta(input_file);
-        input.sim(reference_file, regions_file, bed_file, seed, kmer)
+        input.sim(reference_file, regions_file, bed_file, seed, kmer, sens)
     } else {
         let input = Fastx::Fastq(input_file);
-        input.sim(reference_file, regions_file, bed_file, seed, kmer)
+        input.sim(reference_file, regions_file, bed_file, seed, kmer, sens)
     }
 }
 
