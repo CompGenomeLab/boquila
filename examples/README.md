@@ -45,7 +45,7 @@ There are two methods
         cd boquila
         cargo build --release
         ./target/release/boquila --version
-        0.5.1
+        0.6.0
         ```
 
 ## Preparing Data
