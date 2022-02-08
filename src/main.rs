@@ -563,21 +563,21 @@ fn main() -> anyhow::Result<()> {
     let matches = App::new("boquila")
         .version("0.6.0")
         .about("Generate NGS reads with same nucleotide distribution as input file\nGenerated reads will be written to stdout\nBy default input and output format is FASTQ")
-        .arg(Arg::new("src").about("Model file").index(1).required(true))
+        .arg(Arg::new("src").help("Model file").index(1).required(true))
         .arg(
             Arg::new("ref")
-                .about("Reference FASTA")
+                .help("Reference FASTA")
                 .long("ref")
                 .takes_value(true)
                 .value_name("FILE")
                 .required_unless_present("inputseq"),
         ).arg(
             Arg::new("fasta")
-                .about("Change input and output format to FASTA")
+                .help("Change input and output format to FASTA")
                 .long("fasta")
         ).arg(
             Arg::new("regions")
-                .about(
+                .help(
                     "RON formatted file containing genomic regions that generated reads will be selected from",
                 )
                 .long("regions")
@@ -586,7 +586,7 @@ fn main() -> anyhow::Result<()> {
                 .required_unless_present("inputseq"),
         ).arg(
             Arg::new("inputseq")
-                .about(
+                .help(
                     "Input sequencing reads to be used instead of reference genome",
                 )
                 .long("inseq")
@@ -595,11 +595,11 @@ fn main() -> anyhow::Result<()> {
                 .required_unless_present_all(&["ref", "regions"]),
         ).arg(
             Arg::new("inputseqfasta")
-                .about("Change the input sequencing format to FASTA")
+                .help("Change the input sequencing format to FASTA")
                 .long("inseqFasta")
         ).arg(
             Arg::new("outbed")
-                .about(
+                .help(
                     "File name in which the simulated reads will be saved in BED format",
                 )
                 .long("bed")
@@ -607,7 +607,7 @@ fn main() -> anyhow::Result<()> {
                 .value_name("FILE")
         ).arg(
             Arg::new("seed")
-                .about(
+                .help(
                     "Random number seed. If not provided system's default source of entropy will be used instead.",
                 )
                 .long("seed")
@@ -615,7 +615,7 @@ fn main() -> anyhow::Result<()> {
                 .value_name("INT")
         ).arg(
             Arg::new("kmer")
-                .about(
+                .help(
                     "Kmer size to be used while calculating frequency",
                 )
                 .long("kmer")
@@ -624,7 +624,7 @@ fn main() -> anyhow::Result<()> {
                 .default_value("1")
         ).arg(
             Arg::new("sens")
-                .about("Sensitivity of selected reads.\nIf some positions are predominated by specific nucleotides, increasing this value can make simulated reads more similar to input reads.\nHowever runtime will also increase linearly.")
+                .help("Sensitivity of selected reads.\nIf some positions are predominated by specific nucleotides, increasing this value can make simulated reads more similar to input reads.\nHowever runtime will also increase linearly.")
                 .long("sens")
                 .takes_value(true)
                 .value_name("INT")

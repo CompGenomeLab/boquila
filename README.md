@@ -90,7 +90,7 @@ The current minimum Rust version is `1.55.0`
 Use `cargo` to install
 
 ```
-$ cargo install --branch main --git https://github.com/CompGenomeLab/boquila.git
+$ cargo install --branch main --git https://github.com/CompGenomeLab/boquila.git boquila
 ```
 
 Or build from source
