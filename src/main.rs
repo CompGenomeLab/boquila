@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::Context;
 use bytecount::count;
-use clap::{App, Arg};
+use clap::{Arg, Command};
 use itertools::Itertools;
 use nanoserde::DeRon;
 use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
@@ -235,7 +235,7 @@ impl<'a> Fastx<'a> {
                             len: record_seq.len(),
                         });
 
-                        update_distmap(&mut ndist, &record_seq, kmer);
+                        update_distmap(&mut ndist, record_seq, kmer);
                     }
                 }
                 normalize_distmap(&mut ndist);
@@ -369,7 +369,7 @@ impl<'a> Fastx<'a> {
                     _ => "+",
                 };
 
-                update_distmap(&mut out_dist, &seq, kmer);
+                update_distmap(&mut out_dist, seq, kmer);
 
                 if let Some(ref mut bed_file) = bed_file {
                     bed_file.write_all(
@@ -560,7 +560,7 @@ fn reverse_complement(input: &[u8]) -> Vec<u8> {
 }
 
 fn main() -> anyhow::Result<()> {
-    let matches = App::new("boquila")
+    let matches = Command::new("boquila")
         .version("0.6.0")
         .about("Generate NGS reads with same nucleotide distribution as input file\nGenerated reads will be written to stdout\nBy default input and output format is FASTQ")
         .arg(Arg::new("src").help("Model file").index(1).required(true))

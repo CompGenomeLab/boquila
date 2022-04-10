@@ -1,7 +1,7 @@
 use std::{collections::HashMap, str};
 
 use anyhow::Context;
-use clap::{App, Arg};
+use clap::{Arg, Command};
 use itertools::Itertools;
 use seq_io::{
     fasta::Reader as faReader,
@@ -143,12 +143,12 @@ impl<'a> Fastx<'a> {
 }
 
 fn main() -> anyhow::Result<()> {
-    let matches = App::new("nuc_profile")
+    let matches = Command::new("nuc_profile")
         .version("0.1.0")
         .about("Generate nucleotide profile from FASTA or FASTQ")
         .arg(
             Arg::new("reads")
-                .about("File containing input reads")
+                .help("File containing input reads")
                 .long("reads")
                 .short('R')
                 .takes_value(true)
@@ -157,7 +157,7 @@ fn main() -> anyhow::Result<()> {
         )
         .arg(
             Arg::new("format")
-                .about("Input file format")
+                .help("Input file format")
                 .long("format")
                 .short('F')
                 .takes_value(true)
@@ -166,7 +166,7 @@ fn main() -> anyhow::Result<()> {
         )
         .arg(
             Arg::new("kmer")
-                .about("Kmer size to be used while calculating frequency")
+                .help("Kmer size to be used while calculating frequency")
                 .long("kmer")
                 .takes_value(true)
                 .value_name("INT")
@@ -174,7 +174,7 @@ fn main() -> anyhow::Result<()> {
         )
         .arg(
             Arg::new("oligo_len")
-                .about("Oligomer length which nucleotide frequency is calculated for")
+                .help("Oligomer length which nucleotide frequency is calculated for")
                 .long("len")
                 .takes_value(true)
                 .value_name("INT")
