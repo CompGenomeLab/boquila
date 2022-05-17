@@ -83,6 +83,13 @@ boquila input_reads.fq --inseqFasta --inseq inputseq_reads.fa > out.fq
 
 ## Installation
 
+boquila is available via [bioconda](https://bioconda.github.io) and can be easily installed via
+
+```bash
+conda install boquila -c bioconda
+```
+
+Or via Rust toolchain
 boquila is written in Rust, so you'll need to grab a [Rust installation](https://www.rust-lang.org/) in order to install or compile it.
 
 The current minimum Rust version is `1.55.0`
