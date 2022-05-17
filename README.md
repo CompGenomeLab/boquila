@@ -90,6 +90,7 @@ conda install boquila -c bioconda
 ```
 
 Or via Rust toolchain
+
 boquila is written in Rust, so you'll need to grab a [Rust installation](https://www.rust-lang.org/) in order to install or compile it.
 
 The current minimum Rust version is `1.55.0`
