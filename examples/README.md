@@ -8,7 +8,7 @@
 - [Cutadapt](https://cutadapt.readthedocs.io/en/stable/installation.html)
 - Python installation and following packages
     - `plotly=5.3.1`
-    - `pingoin=0.4.0`
+    - `pingouin=0.4.0`
     - `pandas=1.2.3`
 
 
