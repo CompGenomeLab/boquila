@@ -87,30 +87,37 @@ boquila input_reads.fq --inseqFasta --inseq inputseq_reads.fa > out.fq
 
 ## Installation
 
-boquila is available via [bioconda](https://bioconda.github.io) and can be easily installed via
+1. boquila is available via [bioconda](https://bioconda.github.io) and can be easily installed via
 
 ```bash
 conda install boquila -c bioconda
 ```
 
 Or via Rust toolchain
+> Next two methods require Cargo the Rust package manager, which should be installed automatically while installing Rust
 
 boquila is written in Rust, so you'll need to grab a [Rust installation](https://www.rust-lang.org/) in order to install or compile it.
 
 The current minimum Rust version is `1.55.0`
 
-Use `cargo` to install
+2. Installing with `cargo`
+*Cargo will build and install the binary, by default to `$HOME/.cargo/bin/`*
 
 ```
 $ cargo install --branch main --git https://github.com/CompGenomeLab/boquila.git boquila
 ```
 
-Or build from source
+3. Building from source
+*For convenience, you can copy the executable `./target/release/boquila` to some directory in your `PATH`.*
 
-```
-$ git clone https://github.com/CompGenomeLab/boquila.git
-$ cd boquila
-$ cargo build --release
-$ ./target/release/boquila --version
-0.6.1
-```
+    - Clone the repository
+        ```bash
+        git clone https://github.com/CompGenomeLab/boquila.git
+        ```
+    - Then build with `cargo`
+        ```bash
+        cd boquila
+        cargo build --release
+        ./target/release/boquila --version
+        0.6.1
+        ```
