@@ -253,6 +253,8 @@ impl<'a> Fastx<'a> {
         seed: Option<&str>,
         kmer: usize,
         sens: usize,
+        fixed_qual: bool,
+        qual: &str,
     ) -> anyhow::Result<()> {
         let genome = parse_genome(genome_path)?;
         let (records, ndist) = self.parse(kmer)?;
@@ -282,6 +284,8 @@ impl<'a> Fastx<'a> {
             None => None,
         };
 
+        let q = qual.as_bytes().first().unwrap();
+
         let weights: Vec<u64> = regions
             .iter()
             .map(|region| region.end - region.start)
@@ -304,7 +308,7 @@ impl<'a> Fastx<'a> {
                     )
                 })?;
 
-                for _ in 0..25 * sens {
+                for _ in 0..sens {
                     let mut start_pos = rng
                         .gen_range(chr.start as usize + record.len..chr.end as usize - record.len);
                     let mut end_pos = start_pos + record.len;
@@ -386,12 +390,21 @@ impl<'a> Fastx<'a> {
 
                 match *self {
                     Fastx::Fastq(_) => {
-                        write_to(
-                            &stdout,
-                            record.head.as_bytes(),
-                            seq,
-                            record.qual.unwrap().as_bytes(),
-                        )?;
+                        if fixed_qual {
+                            write_to(
+                                &stdout,
+                                record.head.as_bytes(),
+                                seq,
+                                String::from_utf8(vec![*q; record.len]).unwrap().as_bytes(),
+                            )?;
+                        } else {
+                            write_to(
+                                &stdout,
+                                record.head.as_bytes(),
+                                seq,
+                                record.qual.unwrap().as_bytes(),
+                            )?;
+                        }
                     }
                     Fastx::Fasta(_) => {
                         write_to_fa(&stdout, record.head.as_bytes(), seq)?;
@@ -416,12 +429,16 @@ impl<'a> Fastx<'a> {
         kmer: usize,
         fasta: bool,
         sens: usize,
+        fixed_qual: bool,
+        qual: &str,
     ) -> anyhow::Result<()> {
         let input_records = parse_input_seq(input_seq_path, fasta)?;
         let (records, ndist) = self.parse(kmer)?;
 
         let mut dyn_dist = ndist.clone();
         let mut out_dist: HashMap<usize, Vec<HashMap<String, f32>>> = HashMap::new();
+
+        let q = qual.as_bytes().first().unwrap();
 
         let mut counter = 0;
         let checkpoint = records.len() / 10;
@@ -436,7 +453,7 @@ impl<'a> Fastx<'a> {
         for record in records {
             if let Some(dist) = dyn_dist.get(&record.len) {
                 let mut n_reads: Vec<(&[u8], Region)> = Vec::new();
-                for _ in 0..25 * sens {
+                for _ in 0..sens {
                     let choosen = input_records
                         .choose(&mut rng)
                         .context("Slice should not be empty")?;
@@ -461,12 +478,21 @@ impl<'a> Fastx<'a> {
 
                 match *self {
                     Fastx::Fastq(_) => {
-                        write_to(
-                            &stdout,
-                            record.head.as_bytes(),
-                            seq,
-                            record.qual.unwrap().as_bytes(),
-                        )?;
+                        if fixed_qual {
+                            write_to(
+                                &stdout,
+                                record.head.as_bytes(),
+                                seq,
+                                String::from_utf8(vec![*q; record.len]).unwrap().as_bytes(),
+                            )?;
+                        } else {
+                            write_to(
+                                &stdout,
+                                record.head.as_bytes(),
+                                seq,
+                                record.qual.unwrap().as_bytes(),
+                            )?;
+                        }
                     }
                     Fastx::Fasta(_) => {
                         write_to_fa(&stdout, record.head.as_bytes(), seq)?;
@@ -561,7 +587,7 @@ fn reverse_complement(input: &[u8]) -> Vec<u8> {
 
 fn main() -> anyhow::Result<()> {
     let matches = Command::new("boquila")
-        .version("0.6.0")
+        .version("0.6.1")
         .about("Generate NGS reads with same nucleotide distribution as input file\nGenerated reads will be written to stdout\nBy default input and output format is FASTQ")
         .arg(Arg::new("src").help("Model file").index(1).required(true))
         .arg(
@@ -624,12 +650,23 @@ fn main() -> anyhow::Result<()> {
                 .default_value("1")
         ).arg(
             Arg::new("sens")
-                .help("Sensitivity of selected reads.\nIf some positions are predominated by specific nucleotides, increasing this value can make simulated reads more similar to input reads.\nHowever runtime will also increase linearly.")
+                .help("Sensitivity of selected reads.\nIf some positions are predominated by specific nucleotides, increasing this value can make simulated reads more similar to input reads.\nHowever runtime will also increase linearly.\n[possible values: 10-100]")
                 .long("sens")
                 .takes_value(true)
                 .value_name("INT")
-                .possible_values(&["1" ,"2", "3", "4", "5"])
-                .default_value("2")
+                // .possible_values(&["1" ,"2", "3", "4", "5"])
+                .default_value("20")
+        ).arg(
+            Arg::new("useQual")
+                .help("Use given Quality score with parameter 'qual' for all simulated reads.")
+                .long("setQual")
+        ).arg(
+            Arg::new("qual")
+                .help("Quality score to be applied to to each position for all reads.\n'setQual' flag should be present in order it to work\nHas no effect if input reads are not in FASTQ format.")
+                .long("qual")
+                .takes_value(true)
+                .value_name("QUAL")
+                .default_value("I")
         )
         .get_matches();
 
@@ -641,22 +678,57 @@ fn main() -> anyhow::Result<()> {
     let kmer: usize = matches.value_of("kmer").unwrap_or("1").parse()?;
     let sens: usize = matches.value_of("sens").unwrap_or("2").parse()?;
     let inseq_fasta = matches.is_present("inputseqfasta");
+    let given_qual = matches.value_of("qual").unwrap_or("");
 
     if matches.is_present("inputseq") {
         let input_seq_path = matches.value_of("inputseq").unwrap();
         if matches.is_present("fasta") {
             let input = Fastx::Fasta(input_file);
-            input.sim_input_seq(input_seq_path, seed, kmer, inseq_fasta, sens)
+            input.sim_input_seq(
+                input_seq_path,
+                seed,
+                kmer,
+                inseq_fasta,
+                sens,
+                matches.is_present("setQual"),
+                given_qual,
+            )
         } else {
             let input = Fastx::Fastq(input_file);
-            input.sim_input_seq(input_seq_path, seed, kmer, inseq_fasta, sens)
+            input.sim_input_seq(
+                input_seq_path,
+                seed,
+                kmer,
+                inseq_fasta,
+                sens,
+                matches.is_present("setQual"),
+                given_qual,
+            )
         }
     } else if matches.is_present("fasta") {
         let input = Fastx::Fasta(input_file);
-        input.sim(reference_file, regions_file, bed_file, seed, kmer, sens)
+        input.sim(
+            reference_file,
+            regions_file,
+            bed_file,
+            seed,
+            kmer,
+            sens,
+            matches.is_present("setQual"),
+            given_qual,
+        )
     } else {
         let input = Fastx::Fastq(input_file);
-        input.sim(reference_file, regions_file, bed_file, seed, kmer, sens)
+        input.sim(
+            reference_file,
+            regions_file,
+            bed_file,
+            seed,
+            kmer,
+            sens,
+            matches.is_present("setQual"),
+            given_qual,
+        )
     }
 }
 

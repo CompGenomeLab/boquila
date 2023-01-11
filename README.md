@@ -5,7 +5,7 @@ Tool for generating synthetic next-generation sequencing reads with same nucleot
 ## Usage
 
 ```
-boquila 0.6.0
+boquila 0.6.1
 
 Generate NGS reads with same nucleotide distribution as input file
 Generated reads will be written to stdout
@@ -19,6 +19,7 @@ ARGS:
 
 FLAGS:
         --fasta         Change input and output format to FASTA
+        --setQual       Use given Quality score with parameter 'qual' for all simulated reads.
     -h, --help          Print help information
         --inseqFasta    Change the input sequencing format to FASTA
     -V, --version       Print version information
@@ -35,8 +36,11 @@ OPTIONS:
         --sens <INT>        Sensitivity of selected reads.
                             If some positions are predominated by specific nucleotides, increasing
                             this value can make simulated reads more similar to input reads.
-                            However runtime will also increase linearly. [default: 2] [possible
-                            values: 1, 2, 3, 4, 5]
+                            However runtime will also increase linearly.
+                            [possible values: 10-100] [default: 20]
+        --qual <QUAL>       Quality score to be applied to to each position for all reads.
+                            'setQual' flag should be present in order it to work
+                            Has no effect if input reads are not in FASTQ format. [default: I]
 ```
 
 Generated reads will be written to stdout in FASTA or FASTQ format.
@@ -108,5 +112,5 @@ $ git clone https://github.com/CompGenomeLab/boquila.git
 $ cd boquila
 $ cargo build --release
 $ ./target/release/boquila --version
-0.6.0
+0.6.1
 ```
